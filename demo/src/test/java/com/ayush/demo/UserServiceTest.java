@@ -12,6 +12,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.nio.file.AccessDeniedException;
 import java.util.ArrayList;
@@ -46,6 +52,9 @@ class UserServiceTest {
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
+        UsernamePasswordAuthenticationToken auth =
+                new UsernamePasswordAuthenticationToken("Ayush", null, new ArrayList<>());
+        SecurityContextHolder.getContext().setAuthentication(auth);
         //Act
         UserResponseDto result=userService.getUserById(1L);
 
@@ -55,6 +64,9 @@ class UserServiceTest {
     @Test
     void getUserById_WhenUserDoesNotExist_ThrowsResoursceNotFoundException(){
         when(userRepository.findById(999L)).thenReturn(Optional.empty());
+        UsernamePasswordAuthenticationToken auth =
+                new UsernamePasswordAuthenticationToken("Ayush", null, new ArrayList<>());
+        SecurityContextHolder.getContext().setAuthentication(auth);
         assertThrows(ResourceNotFoundException.class,()->{
             userService.getUserById(999L);
         });
@@ -92,6 +104,9 @@ class UserServiceTest {
         user.setName("A");
         user.setId(1L);
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        UsernamePasswordAuthenticationToken auth =
+                new UsernamePasswordAuthenticationToken("A", null, new ArrayList<>());
+        SecurityContextHolder.getContext().setAuthentication(auth);
         userService.deleteUserById(1L);
         verify(userRepository).deleteById(1L);
     }
@@ -110,15 +125,20 @@ class UserServiceTest {
         List<User> user=new ArrayList<>();
         user.add(user1);
         user.add(user2);
-        when(userRepository.findAll()).thenReturn(user);
-        List<UserResponseDto>list=userService.getAllUsers();
-        assertEquals(2,list.size());
-        assertEquals("a",list.get(0).getName());
+        Pageable pageable= PageRequest.of(0,10);
+        Page<User> page = new PageImpl<>(user);
+        when(userRepository.findAll(pageable)).thenReturn(page);
+        Page<UserResponseDto> result = userService.getAllUsers(pageable);
+        assertEquals(2, result.getContent().size());
+        assertEquals("a", result.getContent().get(0).getName());
     }
 
     @Test
     void deleteUser_doesntExist_throwsResourceNotFoundException(){
         when(userRepository.findById(999L)).thenReturn(Optional.empty());
+        UsernamePasswordAuthenticationToken auth =
+                new UsernamePasswordAuthenticationToken("Ayush", null, new ArrayList<>());
+        SecurityContextHolder.getContext().setAuthentication(auth);
         assertThrows(ResourceNotFoundException.class,()->{
             userService.deleteUserById(999L);
         });
